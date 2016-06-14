@@ -94,7 +94,8 @@ def main(config_filename='config.yaml'):
     h = html_parser.HTMLParser()
 
     for account in config['accounts']:
-        status = sc.status(account['username'], account['password'])
+        status = sc.status(account['username'], account['password'], account.get('alias', None))
+        print "Status for {}:".format(status.name)
         for loan in status.loans_by_due_date:
             title = h.unescape(loan.title).decode('utf8') 
             author = h.unescape(loan.author).decode('utf8') 
