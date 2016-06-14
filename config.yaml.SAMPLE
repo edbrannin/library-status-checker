@@ -1,8 +1,8 @@
 accounts:
-  - id: 12345
+  - username: 12345
     password: mygreatpassword
   # You can check multiple accounts
-  - id: 54321
+  - username: 54321
     password: mywifespassword
     email: mywife@gmail.com #optional
 email: my.email@gmail.com
