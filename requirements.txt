@@ -1,0 +1,5 @@
+requests
+six
+pyyaml
+robobrowser
+docopt
