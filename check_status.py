@@ -103,6 +103,8 @@ def main(config_filename='config.yaml'):
                 print "*** OVERDUE: {} by {} was due on {} ***".format(title, author, loan.dueDateString)
             else:
                 print "{} by {} is due on {}".format(title, author, loan.dueDateString)
+        if len(status.loans) == 0:
+            print "No loans."
         if status.fees_cents > 0:
             print "You have ${:0.2f} in fees.".format(status.fees_cents/100.0)
 
