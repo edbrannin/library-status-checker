@@ -11,6 +11,7 @@ import yaml
 from docopt import docopt
 from robobrowser import RoboBrowser
 
+from six.moves import html_parser
 
 def read_config(filename):
     with open('config.yaml', 'r') as in_conf:
@@ -90,13 +91,17 @@ def main(config_filename='config.yaml'):
 
     sc = StatusChecker(config)
 
+    h = html_parser.HTMLParser()
+
     for account in config['accounts']:
         status = sc.status(account['username'], account['password'])
         for loan in status.loans_by_due_date:
+            title = h.unescape(loan.title).decode('utf8') 
+            author = h.unescape(loan.author).decode('utf8') 
             if loan.is_overdue:
-                print "*** OVERDUE: {} by {} was due on {} ***".format(loan.title, loan.author, loan.dueDateString)
+                print "*** OVERDUE: {} by {} was due on {} ***".format(title, author, loan.dueDateString)
             else:
-                print "{} by {} is due on {}".format(loan.title, loan.author, loan.dueDateString)
+                print "{} by {} is due on {}".format(title, author, loan.dueDateString)
         if status.fees_cents > 0:
             print "You have ${:0.2f} in fees.".format(status.fees_cents/100.0)
 
