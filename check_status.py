@@ -4,6 +4,7 @@
 import json
 import pprint
 import time
+import urllib
 
 import yaml
 
@@ -15,6 +16,36 @@ def read_config(filename):
     with open('config.yaml', 'r') as in_conf:
         return yaml.load(in_conf)
 
+class Status(object):
+    def __init__(self, name):
+        self.fees_cents = 0
+        self.name = name
+        self.time = time.time()
+        self.loans = list()
+
+    def add_loan(self, loan):
+        self.loans.append(Loan(loan))
+
+    @property
+    def loans_by_due_date(self):
+        return sorted(self.loans, key=lambda x: x.due_date)
+
+class Loan(object):
+    def __init__(self, data):
+        self.data = data
+        self.due_date = self.data['dueDate'] / 1000
+
+    def __getattr__(self, key):
+        return self.data[key]
+
+    @property
+    def due_at(self):
+        return time.gmtime(self.due_date)
+
+    @property
+    def is_overdue(self):
+        return time.time() > self.due_date
+
 class StatusChecker(object):
     def __init__(self, config):
         self.browser = RoboBrowser()
@@ -23,34 +54,27 @@ class StatusChecker(object):
     def post(self, url, data):
         full_url = self.base_url + url
         data_json = json.dumps(data)
-        print "POSTing to {} with data {}".format(full_url, data_json)
         return self.session.post(full_url, data=data_json)
 
     def get(self, url):
         full_url = self.base_url + url
         return self.session.get(full_url)
 
-    def status(self, username, password):
+    def status(self, username, password, alias=None):
+        status = Status(alias or username)
+
         self.browser.open(self.base_url)
-        r = self.post("/login", dict(
+        self.post("/login", dict(
             username=username,
             lastName=password,
             password=password,
             rememberMe=False))
-        pprint.pprint(r.json())
-        rr = self.get('/account/summary')
-        fees = rr.json()['accountSummary']['fees']
-        if fees > 0:
-            print "You have ${} in fees.".format(fees/100.0)
-        status = self.get('/loans/0/20/Status')
-        for loan in status.json()['loans']:
-            author = loan['author']
-            dueDateEpoch = loan['dueDate'] / 1000
-            dueDateString = loan['dueDateString']
-            title = loan['title']
-            print "{} by {} is due on {}".format(title, author, dueDateString)
-            if time.time() > dueDateEpoch:
-                print "*** OVERDUE ***"
+        account_summery = self.get('/account/summary')
+        status.fees_cents = account_summery.json()['accountSummary']['fees']
+        status_response = self.get('/loans/0/20/Status')
+        for loan in status_response.json()['loans']:
+            status.add_loan(loan)
+        return status
 
     @property
     def session(self):
@@ -64,13 +88,18 @@ def main(config_filename='config.yaml'):
     # Browse to a page with an upload form
     config = read_config(config_filename)
 
-    pprint.pprint(config)
-
     sc = StatusChecker(config)
 
     for account in config['accounts']:
         status = sc.status(account['username'], account['password'])
-        print status
+        for loan in status.loans_by_due_date:
+            if loan.is_overdue:
+                print "*** OVERDUE: {} by {} was due on {} ***".format(loan.title, loan.author, loan.dueDateString)
+            else:
+                print "{} by {} is due on {}".format(loan.title, loan.author, loan.dueDateString)
+        if status.fees_cents > 0:
+            print "You have ${:0.2f} in fees.".format(status.fees_cents/100.0)
+
 
 if __name__ == '__main__':
     # args = docopt(__doc__)
