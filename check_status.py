@@ -61,8 +61,8 @@ class StatusChecker(object):
         full_url = self.base_url + url
         return self.session.get(full_url)
 
-    def status(self, username, password, alias=None):
-        status = Status(alias or username)
+    def status(self, username, password, name=None):
+        status = Status(name or username)
 
         self.browser.open(self.base_url)
         self.post("/login", dict(
@@ -94,7 +94,7 @@ def main(config_filename='config.yaml'):
     h = html_parser.HTMLParser()
 
     for account in config['accounts']:
-        status = sc.status(account['username'], account['password'], account.get('alias', None))
+        status = sc.status(account['username'], account['password'], account.get('name', None))
         print "Status for {}:".format(status.name)
         for loan in status.loans_by_due_date:
             title = h.unescape(loan.title).decode('utf8') 

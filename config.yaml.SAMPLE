@@ -1,6 +1,7 @@
 accounts:
   - username: 12345
     password: mygreatpassword
+    name: My Optional Display Name
   # You can check multiple accounts
   - username: 54321
     password: mywifespassword
