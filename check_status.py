@@ -3,7 +3,7 @@
 
 import json
 import pprint
-import time
+from datetime import datetime
 import urllib
 
 import yaml
@@ -22,7 +22,7 @@ class Status(object):
     def __init__(self, name):
         self.fees_cents = 0
         self.name = name
-        self.time = time.time()
+        self.time = datetime.now()
         self.loans = list()
 
     def add_loan(self, loan):
@@ -42,16 +42,15 @@ class Loan(object):
 
     @property
     def due_at(self):
-        return time.gmtime(self.due_date)
+        return datetime.fromtimestamp(self.due_date)
 
     @property
     def is_overdue(self):
-        return time.time() > self.due_date
+        return datetime.today() > self.due_at
 
     @property
-    def time_left(self):
-        return "Broken"
-        return time.today() - self.due_at
+    def days_left(self):
+        return (self.due_at - datetime.today()).days
 
 class StatusChecker(object):
     def __init__(self, config):
@@ -94,7 +93,7 @@ class StatusChecker(object):
 def to_rows(status):
     h = html_parser.HTMLParser()
     return [[
-        loan.time_left,
+        loan.days_left,
         loan.dueDateString,
         loan.is_overdue and "*" * len("Overdue") or "",
         h.unescape(loan.title).decode('utf8'),
@@ -113,7 +112,8 @@ def main(config_filename='config.yaml'):
         if len(status.loans) == 0:
             print "No loans."
         else:
-            print tabulate(to_rows(status), headers=("Until", "Due", "Overdue", "Title", "Author"))
+            print tabulate(to_rows(status),
+                    headers=("Days Left", "Due", "Overdue", "Title", "Author"))
         if status.fees_cents > 0:
             print "You have ${:0.2f} in fees.".format(status.fees_cents/100.0)
         print
