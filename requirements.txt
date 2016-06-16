@@ -3,3 +3,4 @@ six
 pyyaml
 robobrowser
 docopt
+tabulate

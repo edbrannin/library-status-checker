@@ -10,6 +10,7 @@ import yaml
 
 from docopt import docopt
 from robobrowser import RoboBrowser
+from tabulate import tabulate
 
 from six.moves import html_parser
 
@@ -46,6 +47,11 @@ class Loan(object):
     @property
     def is_overdue(self):
         return time.time() > self.due_date
+
+    @property
+    def time_left(self):
+        return "Broken"
+        return time.today() - self.due_at
 
 class StatusChecker(object):
     def __init__(self, config):
@@ -85,28 +91,32 @@ class StatusChecker(object):
     def base_url(self):
         return self.config['library']['base_url']
 
+def to_rows(status):
+    h = html_parser.HTMLParser()
+    return [[
+        loan.time_left,
+        loan.dueDateString,
+        loan.is_overdue and "*" * len("Overdue") or "",
+        h.unescape(loan.title).decode('utf8'),
+        h.unescape(loan.author).decode('utf8'),
+        ] for loan in status.loans_by_due_date]
+
 def main(config_filename='config.yaml'):
     # Browse to a page with an upload form
     config = read_config(config_filename)
 
     sc = StatusChecker(config)
 
-    h = html_parser.HTMLParser()
-
     for account in config['accounts']:
         status = sc.status(account['username'], account['password'], account.get('name', None))
         print "Status for {}:".format(status.name)
-        for loan in status.loans_by_due_date:
-            title = h.unescape(loan.title).decode('utf8') 
-            author = h.unescape(loan.author).decode('utf8') 
-            if loan.is_overdue:
-                print "*** OVERDUE: {} by {} was due on {} ***".format(title, author, loan.dueDateString)
-            else:
-                print "{} by {} is due on {}".format(title, author, loan.dueDateString)
         if len(status.loans) == 0:
             print "No loans."
+        else:
+            print tabulate(to_rows(status), headers=("Until", "Due", "Overdue", "Title", "Author"))
         if status.fees_cents > 0:
             print "You have ${:0.2f} in fees.".format(status.fees_cents/100.0)
+        print
 
 
 if __name__ == '__main__':
