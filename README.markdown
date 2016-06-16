@@ -2,7 +2,7 @@
 
 Automatically check if your books are due.
 
-Extra annoyica if they're overdue.
+Extra annoyance if they're overdue.
 
 ## Wait what?
 
