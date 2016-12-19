@@ -2,13 +2,13 @@
 """
 
 import json
-import pprint
 from datetime import datetime
 import urllib
 
 import yaml
+import pyaml
+import click
 
-from docopt import docopt
 from robobrowser import RoboBrowser
 from tabulate import tabulate
 
@@ -100,7 +100,9 @@ def to_rows(status):
         h.unescape(loan.author).decode('utf8'),
         ] for loan in status.loans_by_due_date]
 
-def main(config_filename='config.yaml'):
+@click.command()
+@click.option("-d", "--debug", default=False, type=bool, is_flag=True)
+def main(config_filename='config.yaml', debug=False):
     # Browse to a page with an upload form
     config = read_config(config_filename)
 
@@ -117,8 +119,9 @@ def main(config_filename='config.yaml'):
         if status.fees_cents > 0:
             print "You have ${:0.2f} in fees.".format(status.fees_cents/100.0)
         print
+        if debug:
+            pyaml.p([l.data for l in status.loans])
 
 
 if __name__ == '__main__':
-    # args = docopt(__doc__)
     main()
