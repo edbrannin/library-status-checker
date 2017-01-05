@@ -70,11 +70,16 @@ class StatusChecker(object):
         status = Status(name or username)
 
         self.browser.open(self.base_url)
-        self.post("/login", dict(
+        login = self.post("/login", dict(
             username=username,
             lastName=password,
             password=password,
             rememberMe=False))
+        login_json = login.json()
+        if not login_json['success']:
+            print "Unable to log in: {}".format(login_json['error'])
+            print login.text
+            return status
         account_summary = self.get('/account/summary')
         try:
             account_summary.json()
