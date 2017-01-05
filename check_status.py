@@ -75,8 +75,14 @@ class StatusChecker(object):
             lastName=password,
             password=password,
             rememberMe=False))
-        account_summery = self.get('/account/summary')
-        status.fees_cents = account_summery.json()['accountSummary']['fees']
+        account_summary = self.get('/account/summary')
+        try:
+            account_summary.json()
+        except:
+            print "Account summary text:"
+            print account_summary.text
+            raise
+        status.fees_cents = account_summary.json()['accountSummary']['fees']
         status_response = self.get('/loans/0/20/Status')
         for loan in status_response.json()['loans']:
             status.add_loan(loan)
