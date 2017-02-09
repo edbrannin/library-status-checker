@@ -8,11 +8,14 @@ import arrow
 import yaml
 import pyaml
 import click
+import requests
 
 from robobrowser import RoboBrowser
 from tabulate import tabulate
 
 from six.moves import html_parser
+
+html_parser = html_parser.HTMLParser()
 
 def read_config(filename):
     with open('config.yaml', 'r') as in_conf:
@@ -54,6 +57,14 @@ class Loan(object):
     @property
     def days_left(self):
         return (self.due_at - today()).days
+
+    @property
+    def author(self):
+        return html_parser.unescape(self.data['author']).decode('utf8')
+
+    @property
+    def title(self):
+        return html_parser.unescape(self.data['title']).decode('utf8')
 
 class StatusChecker(object):
     def __init__(self, config):
@@ -105,21 +116,49 @@ class StatusChecker(object):
         return self.config['library']['base_url']
 
 def to_rows(status):
-    h = html_parser.HTMLParser()
     return [[
         loan.days_left,
         loan.dueDateString,
         loan.is_overdue and "*" * len("Overdue") or "",
-        h.unescape(loan.title).decode('utf8'),
-        h.unescape(loan.author).decode('utf8'),
+        loan.title,
+        loan.author,
         ] for loan in status.loans_by_due_date]
+
+def push(title, url, message, API_KEY):
+    r = requests.post("https://api.pushbullet.com/v2/pushes",
+            data=dict(title=title, url=url, body=message, type="link"),
+            auth=(API_KEY, None))
+    # print r.text
+
+def alert_loans(owner_name, loans, base_url, api_key, alert_days=0):
+    due_loans = [loan for loan in loans if loan.days_left < int(alert_days)]
+    print "Due loans: {}".format(due_loans)
+    print "Alert Days: {}".format(alert_days)
+    print tabulate([(loan.days_left, loan.title, loan.author) for loan in due_loans],
+            headers=("Days Left", "Title", "Author"))
+
+
+    if due_loans:
+        title = "{} has loans due {}".format(
+                owner_name, due_loans[0].due_at.humanize())
+        body = "; ".join([
+                "'{}'".format(loan.title)
+                for loan in due_loans]),
+        push(title,
+            base_url,
+            body,
+            api_key
+            )
+
 
 @click.command()
 @click.option("-d", "--debug", default=False, type=bool, is_flag=True)
-def main(config_filename='config.yaml', debug=False):
+@click.option("-a", "--alert-days", default=None)
+def main(config_filename='config.yaml', debug=False, alert_days=None):
     # Browse to a page with an upload form
     config = read_config(config_filename)
 
+    # TODO Search each account in parallel, then show results at the end
     sc = StatusChecker(config)
 
     for account in config['accounts']:
@@ -130,11 +169,18 @@ def main(config_filename='config.yaml', debug=False):
         else:
             print tabulate(to_rows(status),
                     headers=("Days Left", "Due", "Overdue", "Title", "Author"))
+            if alert_days is not None:
+                alert_loans(account.get('name', 'Someone'),
+                        status.loans,
+                        sc.base_url,
+                        config['pushbullet']['api_key'],
+                        alert_days)
+
         if status.fees_cents > 0:
             print "You have ${:0.2f} in fees.".format(status.fees_cents/100.0)
         print
         if debug:
-            pyaml.p([l.data for l in status.loans])
+            pyaml.p([l.data for l in status.loans_by_due_date])
 
 
 if __name__ == '__main__':
