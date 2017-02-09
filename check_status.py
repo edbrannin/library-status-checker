@@ -2,9 +2,9 @@
 """
 
 import json
-from datetime import datetime
 import urllib
 
+import arrow
 import yaml
 import pyaml
 import click
@@ -22,7 +22,7 @@ class Status(object):
     def __init__(self, name):
         self.fees_cents = 0
         self.name = name
-        self.time = datetime.now()
+        self.time = arrow.now()
         self.loans = list()
 
     def add_loan(self, loan):
@@ -31,6 +31,9 @@ class Status(object):
     @property
     def loans_by_due_date(self):
         return sorted(self.loans, key=lambda x: x.due_date)
+
+def today():
+    return arrow.now().floor('day')
 
 class Loan(object):
     def __init__(self, data):
@@ -42,15 +45,15 @@ class Loan(object):
 
     @property
     def due_at(self):
-        return datetime.fromtimestamp(self.due_date)
+        return arrow.get(self.due_date).ceil('day')
 
     @property
     def is_overdue(self):
-        return datetime.today() > self.due_at
+        return today() > self.due_at
 
     @property
     def days_left(self):
-        return (self.due_at - datetime.today()).days
+        return (self.due_at - today()).days
 
 class StatusChecker(object):
     def __init__(self, config):

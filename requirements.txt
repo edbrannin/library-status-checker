@@ -4,3 +4,5 @@ pyyaml
 robobrowser
 docopt
 tabulate
+arrow
+pytest
