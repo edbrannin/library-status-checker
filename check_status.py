@@ -132,13 +132,12 @@ def push(title, url, message, API_KEY):
 
 def alert_loans(owner_name, loans, base_url, api_key, alert_days=0):
     due_loans = [loan for loan in loans if loan.days_left < int(alert_days)]
-    print "Due loans: {}".format(due_loans)
-    print "Alert Days: {}".format(alert_days)
-    print tabulate([(loan.days_left, loan.title, loan.author) for loan in due_loans],
-            headers=("Days Left", "Title", "Author"))
-
+    print "Found {} loans due in {} days or sooner.".format(len(due_loans), alert_days)
 
     if due_loans:
+        print tabulate([(loan.days_left, loan.title, loan.author) for loan in due_loans],
+                headers=("Days Left", "Title", "Author"))
+
         title = "{} has loans due {}".format(
                 owner_name, due_loans[0].due_at.humanize())
         body = "; ".join([
