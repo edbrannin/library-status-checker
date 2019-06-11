@@ -20,7 +20,7 @@ html_parser = html_parser.HTMLParser()
 
 def read_config(filename):
     with open('config.yaml', 'r') as in_conf:
-        return yaml.load(in_conf)
+        return yaml.load(in_conf, Loader=yaml.BaseLoader)
 
 class Status(object):
     def __init__(self, name):
