@@ -6,3 +6,5 @@ docopt
 tabulate
 arrow
 pytest
+pyaml
+click
