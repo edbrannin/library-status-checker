@@ -3,6 +3,7 @@
 
 import json
 import urllib
+import pprint
 
 import arrow
 import yaml
@@ -38,10 +39,13 @@ class Status(object):
 def today():
     return arrow.now().floor('day')
 
+
 class Loan(object):
     def __init__(self, data):
         self.data = data
         self.due_date = self.data['dueDate'] / 1000
+        self.due_at_string = self.due_at.format('ddd, YYYY-MM-DD')
+        self.renewalCountString = "{1}{0}{1}".format(self.renewalCount, self.renewalCount == 2 and '*' or '')
 
     def __getattr__(self, key):
         return self.data[key]
@@ -94,6 +98,10 @@ class StatusChecker(object):
             print "Unable to log in: {}".format(login_json['error'])
             print login.text
             return status
+        isAuthenticated = self.get('/isAuthenticated')
+        if not isAuthenticated.json():
+            print('isAuthenticated is not true!: {}'.format(isAuthenricated))
+            return status
         account_summary = self.get('/account/summary')
         try:
             account_summary.json()
@@ -101,10 +109,15 @@ class StatusChecker(object):
             print "Account summary text:"
             print account_summary.text
             raise
-        status.fees_cents = account_summary.json()['accountSummary']['fees']
-        status_response = self.get('/loans/0/20/Status')
-        for loan in status_response.json()['loans']:
-            status.add_loan(loan)
+        account_summary_json = account_summary.json()['accountSummary']
+        status.fees_cents = account_summary_json['fees']
+        try:
+            for loan in account_summary_json['chargeItems']:
+                status.add_loan(loan)
+        except:
+            print 'Error getting charge items: {}'.format(pprint.pformat(account_summary_json))
+            raise
+
         return status
 
     @property
@@ -115,14 +128,23 @@ class StatusChecker(object):
     def base_url(self):
         return self.config['library']['base_url']
 
+def to_row(loan):
+    try:
+        return [
+            loan.days_left,
+            loan.due_at_string,
+            loan.renewalCountString,
+            loan.is_overdue and "*" * len("Overdue") or "",
+            loan.title,
+            loan.author,
+        ]
+    except:
+        print('Error formatting loan:')
+        pprint.pprint(loan.data)
+        raise
+
 def to_rows(status):
-    return [[
-        loan.days_left,
-        loan.dueDateString,
-        loan.is_overdue and "*" * len("Overdue") or "",
-        loan.title,
-        loan.author,
-        ] for loan in status.loans_by_due_date]
+    return [to_row(loan) for loan in status.loans_by_due_date]
 
 def push(title, url, message, API_KEY):
     r = requests.post("https://api.pushbullet.com/v2/pushes",
@@ -136,7 +158,7 @@ def alert_loans(owner_name, loans, base_url, api_key, alert_days=0):
 
     if due_loans:
         print tabulate([(loan.days_left, loan.title, loan.author) for loan in due_loans],
-                headers=("Days Left", "Title", "Author"))
+                headers=("Days Left", "Renewals", "Title", "Author"))
 
         title = "{} has loans due {}".format(
                 owner_name, due_loans[0].due_at.humanize())
@@ -167,7 +189,7 @@ def main(config_filename='config.yaml', debug=False, alert_days=None):
             print "No loans."
         else:
             print tabulate(to_rows(status),
-                    headers=("Days Left", "Due", "Overdue", "Title", "Author"))
+                    headers=("Days Left", "Due", "Renewals", "Overdue", "Title", "Author"))
             if alert_days is not None:
                 alert_loans(account.get('name', 'Someone'),
                         status.loans,
